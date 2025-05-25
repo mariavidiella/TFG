@@ -1,0 +1,136 @@
+---
+title: "datos_sinteticos"
+author: "María Vidiella Villegas"
+date: "2025-05-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(synthpop)
+
+# Cargar dataset pequeño
+df_small <- read.csv("dataset_sin_escalar.csv")
+
+# Excluir la primera columna (fecha)
+df_to_synth <- df_small[, -1]
+
+# Generar datos sintéticos (método por defecto)
+synth_data <- syn(df_to_synth, seed = 2912)
+
+# Comparar resultados
+compare(synth_data, df_to_synth)
+
+```
+```{r}
+library(synthpop)
+
+set.seed(123)
+
+df <- read.csv("dataset_sin_escalar.csv")
+df_to_synth <- df[, !names(df) %in% "date"]
+
+vars <- colnames(df_to_synth)
+methods <- rep("cart", length(vars))
+names(methods) <- vars
+
+# Forzar 'cart' para activity_count y 'ctree' para variables problemáticas
+methods["activity_count"] <- "cart"
+
+problematic_vars <- c(
+  "sleep_prev_sleep_start",
+  "sleep_prev_sleep_minutes_deep",
+  "sleep_prev_sleep_wakeups",
+  "sleep_next_sleep_minutes_total",
+  "sleep_next_sleep_wakeups"
+)
+methods[problematic_vars] <- "ctree"
+
+synth_data <- syn(df_to_synth, method = methods, ctree.minbucket = 15, m = 5, seed = 123)
+
+compare(synth_data, df_to_synth)
+
+
+```
+```{r}
+library(synthpop)
+
+set.seed(123)
+
+df <- read.csv("dataset_sin_escalar.csv")
+df_to_synth <- df[, !names(df) %in% "date"]
+
+vars <- colnames(df_to_synth)
+methods <- rep("cart", length(vars))
+names(methods) <- vars
+
+# Asignar 'cart' para activity_count 
+methods["activity_count"] <- "cart"
+
+problematic_vars <- c(
+  "sleep_prev_sleep_start",
+  "sleep_prev_sleep_minutes_deep",
+  "sleep_prev_sleep_wakeups",
+  "sleep_next_sleep_start",
+  "sleep_next_sleep_minutes_total",
+  "sleep_next_sleep_wakeups"
+)
+methods[problematic_vars] <- "ctree"
+
+synth_data <- syn(df_to_synth, method = methods, ctree.minbucket = 15, m = 1, seed = 123)
+
+compare(synth_data, df_to_synth)
+
+
+
+
+```
+
+
+
+
+```{r}
+library(ggplot2)
+
+# Base real y sintética
+df_real <- df_to_synth
+df_sint <- synth_data$syn
+
+# Iterar por todas las variables
+for (var in names(df_real)) {
+  # Construir data frame de comparación
+  df_plot <- rbind(
+    data.frame(valor = df_real[[var]], origen = "Real"),
+    data.frame(valor = df_sint[[var]], origen = "Sintético")
+  )
+
+  df_plot$origen <- factor(df_plot$origen)
+
+  # Graficar según tipo de variable
+  if (is.numeric(df_real[[var]]) && length(unique(df_real[[var]])) > 5) {
+    # Variable continua → densidad
+    p <- ggplot(df_plot, aes(x = valor, fill = origen)) +
+      geom_density(alpha = 0.5) +
+      theme_minimal() +
+      labs(title = paste("Distribución:", var), x = var, y = "Densidad")
+  } else {
+    # Variable discreta → barras
+    p <- ggplot(df_plot, aes(x = as.factor(valor), fill = origen)) +
+      geom_bar(position = "dodge") +
+      theme_minimal() +
+      labs(title = paste("Distribución:", var), x = var, y = "Frecuencia")
+  }
+
+  print(p)
+}
+
+```
+
+```{r}
+# Guardar a CSV
+write.csv(synth_data$syn, "dataset_sintetico_final2.csv", row.names = FALSE)
+```
+
